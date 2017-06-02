@@ -1,0 +1,148 @@
+from bs4 import BeautifulSoup
+import urllib.request
+import time,requests,os,xlsxwriter,xlwt,re
+import csv
+
+
+
+#创建excel文件
+workbookx = xlsxwriter.Workbook("import.xlsx")
+#创建表
+Products = workbookx.add_worksheet("Products")
+Additionalimages = workbookx.add_worksheet("Additionalimages")
+Specials = workbookx.\
+    add_worksheet("Specials")
+Discounts = workbookx.add_worksheet("Discounts")
+Rewards = workbookx.add_worksheet("Rewards")
+ProductOptions = workbookx.add_worksheet("ProductOptions")
+ProductOptionValues = workbookx.add_worksheet("ProductOptionValues")
+ProductAttributes = workbookx.add_worksheet("ProductAttributes")
+#表格样式
+format = workbookx.add_format()
+format.set_align('justify')
+format.set_align('center')
+format.set_align('vjustify')
+format.set_text_wrap()
+#插入表头
+A1 =["product_id","name(en)","categories","sku","upc","ean","jan","isbn","mpn","location","quantity","model","manufacturer","image_name","shipping","price","points","date_added","date_modified","date_available","weight","weight_unit","length","width","height","length_unit","status","tax_class_id","seo_keyword","description(en)","meta_title(en)","meta_description(en)","meta_keywords(en)","stock_status_id","store_ids","layout","related_ids","tags(en)","sort_order","subtract","minimum"]
+for i in range(0,len(A1)):
+    Products.write(0,i,A1[i]) #生成表头1
+B1 = ["product_id","image","sort_order"]
+for i in range(0,len(B1)):
+    Additionalimages.write(0,i,B1[i]) #生成表头2
+C1 =["product_id","customer_group","priority","price","date_start","date_end"]
+for i in range(0,len(C1)):
+    Specials.write(0,i,C1[i]) #生成表头3
+D1 = ["product_id","customer_group","quantity","priority","price","date_start","date_end"]
+for i in range(0,len(D1)):
+    Discounts.write(0,i,D1[i]) #生成表头4
+E1 = ["product_id","customer_group","points"]
+for i in range(0,len(E1)):
+    Rewards.write(0,i,E1[i]) #生成表头5
+F1 = ["product_id","option","default_option_value","required"]
+for i in range(0,len(F1)):
+    ProductOptions.write(0,i,F1[i]) #生成表头6
+G1 = ["product_id","option","option_value","quantity","subtract","price","price_prefix","points","points_prefix","weight","weight_prefix"]
+for i in range(0,len(G1)):
+    ProductOptionValues.write(0,i,G1[i]) #生成表头7
+H1 = ["product_id","attribute_group","attribute","text(en)"]
+for i in range(0,len(H1)):
+    ProductAttributes.write(0,i,H1[i]) #生成表头8
+
+def url_open(url):
+    req=urllib.request.Request(url)
+    req.add_header('User-Agent','Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36')
+    reques=urllib.request.urlopen(req)
+    html=reques.read().decode('utf-8',errors='replace')
+    return html
+
+def get_links_dress_from(pages):
+    list_view = "https://www.chinabrands.com/category/Wholesale-Dresses-c_6.html?sid=948397&page={}".format(str(pages))
+    time.sleep(1)
+    soup = BeautifulSoup(url_open(list_view), "lxml")
+    sku_url = []
+    for link in soup.select("div.pic-wrap a"):
+        sku_url.append(link.get("href"))
+    return sku_url
+
+
+
+#
+def get_massages(product_id,pages,categories,model):
+    row = 1
+    id = int(product_id)
+    si = []
+    for i in get_links_dress_from(pages):
+        #表 1  数据源
+        soup = BeautifulSoup(url_open(i), "lxml")
+        name = soup.select(" div.goods-info-main h1")[0].get("title")
+        c = re.compile("(\d+)")
+        for i in c.findall(soup.select("span.sku ")[0].get_text()):
+            sku = i
+        for c in soup.select("div.xxkkk20"):
+            w = re.compile("(0\.\d+)")
+            for i in w.findall(str(c)):
+                weight = i
+
+        style = '<meta charset="UTF-8"><style> .size-chart-container{width:800px;}.size-chart-container .chart-table-title{width:100%; height:31px; line-height:31px; background:#eee; text-align:center;}.size-chart-container .chart-table{width:100%; border:1px solid #ddd; border-collapse:collapse;}.size-chart-container .chart-table th{padding:8px; font-size:12px; font-weight:normal; text-align:center; border:1px solid #ddd; background:#f7f7f7;}.size-chart-container .chart-table td{padding:8px; font-size:12px; font-weight:normal; text-align:center; border:1px solid #ddd; background:#fff;}</style>'
+        description1 = str(soup.select("div.content div.xxkkk")[0])
+        description2 = style+str(soup.select("table.chart-table")[0])
+        des = description1+description2
+
+        print(sku)
+        print(des)
+        data1 = (id,name,categories,sku,"","","","","","","990",model,"","","yes","","","","","",str(weight),"kg","0","0","0","cm","true","0","",des,name,name,"","7","0","0:","","","1","true","1")
+
+        for k in range(0, len(data1)):
+            Products.write(row, k, data1[k])
+
+
+
+
+        #表2 数据源Additionalimages
+        data2 = (id,"","0")
+        for k in range(0, len(data2)):
+            Additionalimages.write(row, k, data2[k])
+
+        data6 = (id,"Size","","true")
+        for k in range(0, len(data6)):
+            ProductOptions.write(row, k, data6[k])
+
+        #表7数据源
+        size = soup.select("li a.attr")
+        sizesr = []
+
+        for i in size:
+            p = re.compile("(\w+)")
+            if p.findall(i.get_text()):
+                sizesr.append(i.get_text())
+            else:
+                pass
+
+        def get_id(id,row):
+            d = id
+            if len(si)== 0 :
+                r = row
+            else:
+                r = len(si)+1
+            for i in sizesr:
+                data7 = (d,"Size",i,"999","true","0.00","+","0","+","0.00","+")
+
+                print(r)
+                for k in range(0, len(data7)):
+                    ProductOptionValues.write(r, k, data7[k])
+                si.append(i)
+                r+=1
+
+
+
+
+
+
+        get_id(id,row)
+        row += 1
+        id += 1
+
+
+get_massages("3","1","61","dress")
+workbookx.close()
